@@ -1,54 +1,41 @@
-# Dependencies
-node_modules/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# pnpm
-.pnpm-store/
-.pnpm-debug.log*
-
-# Yarn (not used)
+# dependencies
+/node_modules
 /.pnp
-.pnp.js
 .pnp.*
-yarn.lock
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# npm (not used)
-package-lock.json
-
-# Testing
+# testing
 /coverage
-*.lcov
 
-# Next.js
+# next.js
 /.next/
 /out/
-next-env.d.ts
 
-# Production
+# production
 /build
-/dist
 
-# Misc
+# misc
 .DS_Store
 *.pem
 
-# Debug
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
-# Local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# env files (can opt-in for committing if needed)
+.env*
 
-# Vercel
+# vercel
 .vercel
 
-# Typescript
+# typescript
 *.tsbuildinfo
-
-# Turbo
-.turbo
-
+next-env.d.ts
