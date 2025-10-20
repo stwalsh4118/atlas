@@ -8,13 +8,15 @@ Build a robust data import pipeline to load county tax parcel shapefile data int
 
 ## Problem Statement
 
-County parcel data comes in shapefile format with varying:
+County parcel data comes in various geospatial formats (GeoJSON, Shapefile, Geodatabase) with varying:
 - Coordinate reference systems (may not be EPSG:4326)
 - Attribute field names and structures
 - Geometry types (Polygon vs MultiPolygon)
 - Data quality issues (invalid geometries, null values)
+- File sizes (500MB-2GB+)
 
 We need a reliable pipeline that:
+- Supports multiple input formats (GeoJSON, Shapefile, etc.)
 - Transforms any CRS to EPSG:4326 (WGS84)
 - Normalizes attribute names to our schema
 - Validates and repairs geometries
@@ -23,7 +25,7 @@ We need a reliable pipeline that:
 
 ## User Stories
 
-- **US-DEV-9**: As a developer, I want to import county parcel shapefiles so that I can populate the database with real data
+- **US-DEV-9**: As a developer, I want to import county parcel data (GeoJSON/Shapefile) so that I can populate the database with real data
 - **US-DEV-10**: As a developer, I want automatic CRS transformation so that all data is in WGS84
 - **US-DEV-11**: As a developer, I want geometry validation so that invalid shapes don't break queries
 - **US-DEV-12**: As a developer, I want clear error reporting so that I can fix data issues
@@ -32,47 +34,48 @@ We need a reliable pipeline that:
 
 ### Import Tools Options
 
-**Option 1: PostGIS shp2pgsql (Recommended for MVP)**
-- Pros: Built-in, fast, reliable, handles CRS transformation
-- Cons: Command-line only, less flexibility
-- Command example:
-```bash
-shp2pgsql -I -s 2278:4326 -g geom parcels.shp tax_parcels | \
-  psql -h localhost -d atlas -U postgres
-```
-
-**Option 2: ogr2ogr (GDAL)**
-- Pros: Very flexible, handles many formats
+**Option 1: ogr2ogr + shp2pgsql (Recommended for MVP)**
+- **Primary**: ogr2ogr (GDAL) for GeoJSON and flexibility
+- **Secondary**: shp2pgsql for shapefiles when performance is critical
+- Pros: Handles many formats (GeoJSON, Shapefile, Geodatabase), CRS transformation, field mapping
 - Cons: Requires GDAL installation
-- Command example:
+- Command example (GeoJSON):
 ```bash
 ogr2ogr -f PostgreSQL \
   PG:"host=localhost dbname=atlas user=postgres" \
-  parcels.shp \
-  -nln tax_parcels \
+  parcels.geojson \
+  -nln tax_parcels_staging \
   -t_srs EPSG:4326
 ```
 
-**Option 3: Custom Go Tool**
-- Pros: Full control, can add business logic
-- Cons: More development time, need to handle CRS transformation
-- Consider for post-MVP if needed
+**Option 2: Custom Go Tool (Post-MVP)**
+- Pros: Full control, single binary, type-safe field mapping
+- Cons: More development time
+- Consider for future enhancement (PBI-9 or similar)
+
+**Why GeoJSON as Primary Format:**
+- Modern, widely supported format
+- 4-5x smaller than shapefiles (500MB vs 2GB+ for same data)
+- Single file (vs shapefile's 4+ files)
+- Human-readable, easier to debug
+- Native JSON format integrates well with modern tools
 
 ### Import Pipeline Steps
 
 1. **Pre-Import Validation**
-   - Check shapefile exists and is readable
+   - Check file exists and is readable (GeoJSON, Shapefile, etc.)
    - Identify source CRS
    - Preview field names and sample data
    - Estimate record count
+   - Report file size and format
 
 2. **Field Mapping**
-   - Map shapefile fields to tax_parcels columns
+   - Map source file fields to tax_parcels columns
    - Handle different county naming conventions:
+     - "OBJECTID" / "OBJECT_ID" / "OID" → object_id
+     - "PIN" / "PARCEL_ID" / "PARCEL" / "APN" → pin
      - "OWNER" / "OWNERNAME" / "OWNER_NAME" → owner_name
-     - "PARCEL" / "PARCEL_ID" / "APN" → parcel_id
-     - "SITUS" / "ADDRESS" / "SITE_ADDR" → situs_address
-     - "ACRES" / "ACREAGE" / "AREA_AC" → acres
+     - "SITUS" / "ADDRESS" / "SITE_ADDR" → situs
 
 3. **Geometry Processing**
    - Transform to EPSG:4326
@@ -103,12 +106,13 @@ ogr2ogr -f PostgreSQL \
 
 ```bash
 # Example configuration
-SOURCE_SHAPEFILE="./data/montgomery_parcels.shp"
-SOURCE_CRS="EPSG:2278"  # Texas South Central NAD83
+SOURCE_FILE="./data/montgomery_parcels.geojson"  # or .shp, .gdb
+SOURCE_CRS="EPSG:2278"  # Texas South Central NAD83 (often auto-detected)
 TARGET_CRS="EPSG:4326"  # WGS84
 DB_HOST="host.docker.internal"
 DB_NAME="atlas"
 DB_USER="postgres"
+FILE_FORMAT="GeoJSON"  # or Shapefile, Geodatabase
 ```
 
 ## UX/UI Considerations
@@ -117,10 +121,10 @@ N/A - Backend data pipeline only
 
 ## Acceptance Criteria
 
-1. ✅ Import script accepts shapefile path as input
+1. ✅ Import script accepts GeoJSON/Shapefile path as input
 2. ✅ Script automatically detects source CRS
 3. ✅ All geometries transformed to EPSG:4326
-4. ✅ Polygons converted to MultiPolygon format
+4. ✅ Polygons converted to MultiPolygon format (if needed)
 5. ✅ Invalid geometries are validated and fixed or logged
 6. ✅ At least 10,000 parcels imported successfully
 7. ✅ Import completes in reasonable time (< 5 minutes for 50k parcels)
@@ -128,23 +132,24 @@ N/A - Backend data pipeline only
 9. ✅ Post-import validation confirms data integrity
 10. ✅ Spatial index is functional after import (verify with EXPLAIN)
 11. ✅ Sample point-in-polygon query returns results correctly
-12. ✅ Documentation for running import with different counties
+12. ✅ Documentation for running import with different counties and formats
 13. ✅ Error log captures any problematic records
 
 ## Dependencies
 
 - PBI-2: Database Schema and Spatial Indexing (table must exist)
-- County parcel shapefile data downloaded
-- PostGIS tools (shp2pgsql) or GDAL (ogr2ogr) available
+- County parcel data downloaded (GeoJSON preferred, ~500MB for Montgomery County)
+- GDAL tools (ogr2ogr, ogrinfo) installed
+- PostGIS tools (shp2pgsql) optional for shapefile performance
 - Database credentials and connection
 
 ## Open Questions
 
-1. Which county's data should we use for initial testing? Montgomery County, TX?
-2. Should we support incremental updates or only full imports?
-3. Do we need to preserve original source geometry in a separate column?
-4. Should we add metadata tracking (import_date, source_file) to records?
-5. How do we handle multi-county imports - separate tables or single table with county field?
+1. ~~Which county's data should we use for initial testing?~~ **RESOLVED**: Montgomery County, TX GeoJSON (~500MB, ~50k parcels)
+2. Should we support incremental updates or only full imports? (MVP: full imports only)
+3. Do we need to preserve original source geometry in a separate column? (Not for MVP)
+4. Should we add metadata tracking (import_date, source_file) to records? (Consider for post-MVP)
+5. How do we handle multi-county imports - separate tables or single table with county field? (MVP: single county, county_name field exists for future)
 
 ## Related Tasks
 
@@ -152,7 +157,7 @@ See [tasks.md](./tasks.md) for the detailed task breakdown.
 
 ---
 
-**Status**: Proposed  
+**Status**: Agreed  
 **Created**: 2025-10-19  
-**Last Updated**: 2025-10-19
+**Last Updated**: 2025-10-20
 
