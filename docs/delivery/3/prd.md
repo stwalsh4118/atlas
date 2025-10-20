@@ -106,7 +106,7 @@ ogr2ogr -f PostgreSQL \
 SOURCE_SHAPEFILE="./data/montgomery_parcels.shp"
 SOURCE_CRS="EPSG:2278"  # Texas South Central NAD83
 TARGET_CRS="EPSG:4326"  # WGS84
-DB_HOST="localhost"
+DB_HOST="host.docker.internal"
 DB_NAME="atlas"
 DB_USER="postgres"
 ```

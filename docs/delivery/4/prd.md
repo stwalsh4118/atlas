@@ -74,7 +74,7 @@ PORT=8080
 ENV=development
 
 # Database
-DB_HOST=localhost
+DB_HOST=host.docker.internal
 DB_PORT=5432
 DB_NAME=atlas
 DB_USER=postgres
