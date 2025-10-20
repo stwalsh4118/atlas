@@ -2,7 +2,9 @@
 # Database migration helpers using golang-migrate
 
 # Database connection settings (override with environment variables)
-DB_HOST ?= localhost
+# Note: Using host.docker.internal for WSL2 + Docker Desktop compatibility
+# Native Linux users can override with: DB_HOST=localhost make <command>
+DB_HOST ?= host.docker.internal
 DB_PORT ?= 5432
 DB_USER ?= postgres
 DB_PASSWORD ?= postgres
