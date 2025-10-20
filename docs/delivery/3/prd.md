@@ -4,7 +4,10 @@
 
 ## Overview
 
-Build a robust data import pipeline to load county tax parcel shapefile data into PostgreSQL, including coordinate transformation, geometry validation, and error handling.
+Build a robust data import pipeline to load county tax parcel GeoJSON data into PostgreSQL, including coordinate transformation, geometry validation, and error handling.
+
+**Primary Format**: GeoJSON (modern, efficient, single-file format)  
+**Supported Formats**: Shapefile, File Geodatabase (for compatibility)
 
 ## Problem Statement
 
@@ -34,12 +37,12 @@ We need a reliable pipeline that:
 
 ### Import Tools Options
 
-**Option 1: ogr2ogr + shp2pgsql (Recommended for MVP)**
-- **Primary**: ogr2ogr (GDAL) for GeoJSON and flexibility
-- **Secondary**: shp2pgsql for shapefiles when performance is critical
-- Pros: Handles many formats (GeoJSON, Shapefile, Geodatabase), CRS transformation, field mapping
+**Option 1: ogr2ogr (GDAL) - Recommended for MVP**
+- **Primary tool** for GeoJSON import (our standard format)
+- Also supports Shapefile and Geodatabase for compatibility
+- Pros: Handles multiple formats, CRS transformation, field mapping, single command
 - Cons: Requires GDAL installation
-- Command example (GeoJSON):
+- Command example for GeoJSON import:
 ```bash
 ogr2ogr -f PostgreSQL \
   PG:"host=localhost dbname=atlas user=postgres" \
@@ -63,11 +66,12 @@ ogr2ogr -f PostgreSQL \
 ### Import Pipeline Steps
 
 1. **Pre-Import Validation**
-   - Check file exists and is readable (GeoJSON, Shapefile, etc.)
-   - Identify source CRS
+   - Check GeoJSON file exists and is readable
+   - Identify source CRS (typically EPSG:4326 for GeoJSON)
    - Preview field names and sample data
-   - Estimate record count
-   - Report file size and format
+   - Estimate record count  
+   - Report file size
+   - Verify JSON structure validity
 
 2. **Field Mapping**
    - Map source file fields to tax_parcels columns
@@ -105,14 +109,16 @@ ogr2ogr -f PostgreSQL \
 ### Configuration
 
 ```bash
-# Example configuration
-SOURCE_FILE="./data/montgomery_parcels.geojson"  # or .shp, .gdb
-SOURCE_CRS="EPSG:2278"  # Texas South Central NAD83 (often auto-detected)
-TARGET_CRS="EPSG:4326"  # WGS84
+# Example configuration for Montgomery County, TX
+SOURCE_FILE="./data/montgomery_parcels.geojson"  # GeoJSON format (primary)
+SOURCE_CRS="EPSG:4326"  # WGS84 (typical for GeoJSON)
+TARGET_CRS="EPSG:4326"  # WGS84 (already in target format!)
 DB_HOST="host.docker.internal"
 DB_NAME="atlas"
 DB_USER="postgres"
-FILE_FORMAT="GeoJSON"  # or Shapefile, Geodatabase
+FILE_FORMAT="GeoJSON"
+FILE_SIZE="837MB"  # Pretty-printed format
+RECORD_COUNT="325,071"  # Montgomery County parcels
 ```
 
 ## UX/UI Considerations
@@ -121,7 +127,7 @@ N/A - Backend data pipeline only
 
 ## Acceptance Criteria
 
-1. ✅ Import script accepts GeoJSON/Shapefile path as input
+1. ✅ Import script accepts GeoJSON file path as input (primary format)
 2. ✅ Script automatically detects source CRS
 3. ✅ All geometries transformed to EPSG:4326
 4. ✅ Polygons converted to MultiPolygon format (if needed)
@@ -138,14 +144,18 @@ N/A - Backend data pipeline only
 ## Dependencies
 
 - PBI-2: Database Schema and Spatial Indexing (table must exist)
-- County parcel data downloaded (GeoJSON preferred, ~500MB for Montgomery County)
+- **County parcel GeoJSON data downloaded** (~837MB for Montgomery County, 325k parcels)
 - GDAL tools (ogr2ogr, ogrinfo) installed
-- PostGIS tools (shp2pgsql) optional for shapefile performance
+- jq (JSON processor) for validation and inspection
 - Database credentials and connection
+
+**Data Source**: Montgomery County, TX Tax Assessor  
+**Format**: GeoJSON (FeatureCollection)  
+**CRS**: EPSG:4326 (WGS84) - no transformation needed
 
 ## Open Questions
 
-1. ~~Which county's data should we use for initial testing?~~ **RESOLVED**: Montgomery County, TX GeoJSON (~500MB, ~50k parcels)
+1. ~~Which county's data should we use for initial testing?~~ **RESOLVED**: Montgomery County, TX GeoJSON (837MB pretty-printed, 325,071 parcels, EPSG:4326)
 2. Should we support incremental updates or only full imports? (MVP: full imports only)
 3. Do we need to preserve original source geometry in a separate column? (Not for MVP)
 4. Should we add metadata tracking (import_date, source_file) to records? (Consider for post-MVP)
