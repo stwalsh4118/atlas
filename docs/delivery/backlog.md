@@ -10,7 +10,7 @@ This backlog tracks all Product Backlog Items (PBIs) for the Property Boundary V
 | ID | Actor | User Story | Status | Conditions of Satisfaction (CoS) |
 | :--- | :--- | :--- | :--- | :--- |
 | 1 | Developer | As a developer, I want to set up the project infrastructure so that I have a working development environment | Agreed | [View Details](./1/prd.md) |
-| 2 | Developer | As a developer, I want to create the database schema with spatial indexing so that I can store and query property data efficiently | Proposed | [View Details](./2/prd.md) |
+| 2 | Developer | As a developer, I want to create the database schema with spatial indexing so that I can store and query property data efficiently | Agreed | [View Details](./2/prd.md) |
 | 3 | Developer | As a developer, I want to build a data import pipeline so that I can load county parcel data into the database | Proposed | [View Details](./3/prd.md) |
 | 4 | Developer | As a developer, I want to build the core Go API backend so that frontends can query property data | Proposed | [View Details](./4/prd.md) |
 | 5 | User | As a user, I want to query property information by clicking on a map location so that I can see ownership and boundary details | Proposed | [View Details](./5/prd.md) |
@@ -33,6 +33,8 @@ This backlog tracks all Product Backlog Items (PBIs) for the Property Boundary V
 | 20251019-000008 | 8 | PBI Created | Search and Discovery Features PBI created | AI_Agent |
 | 20251019-000009 | ALL | PBI Updated | Updated all PBIs to use latest technology versions (Go 1.25, PostgreSQL 18, Next.js 15, etc.) | AI_Agent |
 | 20251019-120000 | 1 | Status Change | PBI 1 moved from Proposed to Agreed | User |
+| 20251020-000000 | 2 | Status Change | PBI 2 moved from Proposed to Agreed | User |
+| 20251020-000001 | 2 | PBI Updated | Updated schema to match actual Montgomery County GeoJSON data structure | AI_Agent |
 
 ## Notes
 
