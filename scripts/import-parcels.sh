@@ -28,6 +28,7 @@ readonly SCRIPT_NAME="$(basename "$0")"
 readonly SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 readonly STAGING_TABLE="tax_parcels_staging"
 readonly FINAL_TABLE="tax_parcels"
+readonly LOG_DIR="${SCRIPT_DIR}/../logs"
 
 # Color codes for output
 readonly RED='\033[0;31m'
@@ -49,29 +50,86 @@ DRY_RUN=false
 GEOJSON_FILE=""
 MAPPING_FILE=""
 
+# Logging variables
+LOG_FILE=""
+START_TIME=""
+END_TIME=""
+
 #------------------------------------------------------------------------------
 # Functions
 #------------------------------------------------------------------------------
 
-# Print colored output
+# Get current timestamp in ISO 8601 format
+log_timestamp() {
+    date '+%Y-%m-%d %H:%M:%S'
+}
+
+# Get timestamp for filenames (no spaces or colons)
+log_timestamp_filename() {
+    date '+%Y%m%d-%H%M%S'
+}
+
+# Initialize log file
+init_log_file() {
+    # Create logs directory if it doesn't exist
+    mkdir -p "${LOG_DIR}"
+    
+    # Generate log filename with timestamp
+    local timestamp=$(log_timestamp_filename)
+    LOG_FILE="${LOG_DIR}/import-${timestamp}.log"
+    
+    # Create log file and write header
+    {
+        echo "========================================"
+        echo "Tax Parcel Import Log"
+        echo "========================================"
+        echo "Started: $(log_timestamp)"
+        echo "Script: ${SCRIPT_NAME}"
+        echo ""
+    } > "${LOG_FILE}"
+    
+    print_success "Log file created: ${LOG_FILE}"
+}
+
+# Log message to file and optionally to stdout
+log_to_file() {
+    local message="$1"
+    local level="${2:-INFO}"
+    
+    if [ -n "${LOG_FILE}" ]; then
+        echo "[$(log_timestamp)] [${level}] ${message}" >> "${LOG_FILE}"
+    fi
+}
+
+# Print colored output (also logs to file)
 print_error() {
-    echo -e "${RED}✗ ERROR: $1${NC}" >&2
+    local message="$1"
+    echo -e "${RED}✗ ERROR: ${message}${NC}" >&2
+    log_to_file "ERROR: ${message}" "ERROR"
 }
 
 print_success() {
-    echo -e "${GREEN}✓ $1${NC}"
+    local message="$1"
+    echo -e "${GREEN}✓ ${message}${NC}"
+    log_to_file "${message}" "SUCCESS"
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠ WARNING: $1${NC}"
+    local message="$1"
+    echo -e "${YELLOW}⚠ WARNING: ${message}${NC}"
+    log_to_file "WARNING: ${message}" "WARN"
 }
 
 print_info() {
-    echo -e "${BLUE}ℹ $1${NC}"
+    local message="$1"
+    echo -e "${BLUE}ℹ ${message}${NC}"
+    log_to_file "${message}" "INFO"
 }
 
 print_step() {
-    echo -e "${BLUE}==>${NC} $1"
+    local message="$1"
+    echo -e "${BLUE}==>${NC} ${message}"
+    log_to_file "STEP: ${message}" "INFO"
 }
 
 # Display usage information
@@ -242,8 +300,16 @@ test_db_connection() {
 # Get record count from GeoJSON
 get_record_count() {
     local file="$1"
-    ogrinfo -ro -so "${file}" -sql "SELECT COUNT(*) FROM $(basename ${file%.*})" 2>/dev/null | \
-        grep "Feature Count" | awk '{print $3}' || echo "unknown"
+    # Use -al -so to get summary info which includes Feature Count
+    # This is more reliable than SQL queries for GeoJSON files
+    local count=$(ogrinfo -ro -so -al "${file}" 2>/dev/null | \
+        grep "Feature Count:" | head -n 1 | awk '{print $3}')
+    
+    if [ -n "${count}" ] && [ "${count}" -gt 0 ]; then
+        echo "${count}"
+    else
+        echo "unknown"
+    fi
 }
 
 # Read mapping configuration
@@ -410,6 +476,98 @@ cleanup_staging() {
     print_success "Staging table cleaned up"
 }
 
+# Log configuration details
+log_configuration() {
+    print_step "Logging import configuration..."
+    
+    log_to_file "=== Import Configuration ===" "INFO"
+    log_to_file "GeoJSON File: ${GEOJSON_FILE}" "INFO"
+    
+    # Get file size
+    if [ -f "${GEOJSON_FILE}" ]; then
+        local file_size=$(du -h "${GEOJSON_FILE}" | cut -f1)
+        log_to_file "File Size: ${file_size}" "INFO"
+        print_info "File Size: ${file_size}"
+    fi
+    
+    log_to_file "Mapping File: ${MAPPING_FILE}" "INFO"
+    log_to_file "Source CRS: ${SOURCE_CRS}" "INFO"
+    log_to_file "Target CRS: ${TARGET_CRS}" "INFO"
+    log_to_file "County: ${COUNTY_NAME}" "INFO"
+    log_to_file "Import Mode: ${MODE}" "INFO"
+    log_to_file "Database: ${DB_HOST}:${DB_PORT}/${DB_NAME}" "INFO"
+    log_to_file "Target Table: ${FINAL_TABLE}" "INFO"
+    log_to_file "==============================" "INFO"
+}
+
+# Calculate duration in seconds
+calculate_duration() {
+    local start="$1"
+    local end="$2"
+    echo $((end - start))
+}
+
+# Format duration as human-readable string
+format_duration() {
+    local duration_sec="$1"
+    local hours=$((duration_sec / 3600))
+    local minutes=$(((duration_sec % 3600) / 60))
+    local seconds=$((duration_sec % 60))
+    
+    if [ ${hours} -gt 0 ]; then
+        echo "${hours}h ${minutes}m ${seconds}s"
+    elif [ ${minutes} -gt 0 ]; then
+        echo "${minutes}m ${seconds}s"
+    else
+        echo "${seconds}s"
+    fi
+}
+
+# Calculate and log import summary
+log_import_summary() {
+    local estimated_count="$1"
+    
+    END_TIME=$(date +%s)
+    local duration=$(calculate_duration ${START_TIME} ${END_TIME})
+    local duration_formatted=$(format_duration ${duration})
+    
+    print_step "Calculating import performance metrics..."
+    
+    # Get actual record count from database
+    local actual_count="unknown"
+    if [ "${DRY_RUN}" = false ]; then
+        actual_count=$(PGPASSWORD="${DB_PASSWORD}" psql \
+            -h "${DB_HOST}" \
+            -p "${DB_PORT}" \
+            -U "${DB_USER}" \
+            -d "${DB_NAME}" \
+            -t -c "SELECT COUNT(*) FROM ${FINAL_TABLE};" 2>/dev/null | xargs || echo "unknown")
+    fi
+    
+    log_to_file "=== Import Summary ===" "INFO"
+    log_to_file "Start Time: $(date -d @${START_TIME} '+%Y-%m-%d %H:%M:%S')" "INFO"
+    log_to_file "End Time: $(date -d @${END_TIME} '+%Y-%m-%d %H:%M:%S')" "INFO"
+    log_to_file "Duration: ${duration_formatted} (${duration} seconds)" "INFO"
+    
+    # Use actual count for performance calculation
+    local count_for_calc="${actual_count}"
+    if [ "${count_for_calc}" = "unknown" ] || [ "${count_for_calc}" = "" ]; then
+        count_for_calc="${estimated_count}"
+    fi
+    
+    # Calculate records per second
+    if [ ${duration} -gt 0 ] && [ "${count_for_calc}" != "unknown" ] && [ -n "${count_for_calc}" ]; then
+        local records_per_sec=$((count_for_calc / duration))
+        log_to_file "Records Imported: ${count_for_calc}" "INFO"
+        log_to_file "Import Rate: ${records_per_sec} records/second" "INFO"
+        print_success "Import Rate: ${records_per_sec} records/second"
+    fi
+    
+    log_to_file "======================" "INFO"
+    
+    print_success "Total Duration: ${duration_formatted}"
+}
+
 # Get import statistics
 get_import_stats() {
     print_step "Gathering import statistics..."
@@ -427,6 +585,7 @@ get_import_stats() {
         -t -c "SELECT COUNT(*) FROM ${FINAL_TABLE};" | xargs)
     
     print_success "Total records in ${FINAL_TABLE}: ${count}"
+    log_to_file "Final record count: ${count}" "INFO"
     
     # Check for NULL geometries
     local null_geoms=$(PGPASSWORD="${DB_PASSWORD}" psql \
@@ -509,6 +668,12 @@ main() {
     echo "=========================================="
     echo ""
     
+    # Record start time
+    START_TIME=$(date +%s)
+    
+    # Initialize log file
+    init_log_file
+    
     # Validate required arguments
     if [ -z "${GEOJSON_FILE}" ]; then
         print_error "Missing required argument: --file"
@@ -540,21 +705,26 @@ main() {
     # Read mapping configuration
     read_mapping_config "${MAPPING_FILE}"
     
+    # Log configuration details
+    log_configuration
+    
     # Get record count
     local record_count=$(get_record_count "${GEOJSON_FILE}")
     print_info "Records to import: ${record_count}"
+    log_to_file "Records to import: ${record_count}" "INFO"
     
     # Handle mode
     if [ "${MODE}" = "replace" ]; then
         print_warning "Mode: REPLACE - Existing data in ${FINAL_TABLE} will be cleared"
         if [ "${DRY_RUN}" = false ]; then
+            # TRUNCATE with RESTART IDENTITY resets the BIGSERIAL sequence to 1
             PGPASSWORD="${DB_PASSWORD}" psql \
                 -h "${DB_HOST}" \
                 -p "${DB_PORT}" \
                 -U "${DB_USER}" \
                 -d "${DB_NAME}" \
-                -c "TRUNCATE TABLE ${FINAL_TABLE};" &> /dev/null
-            print_success "Existing data cleared"
+                -c "TRUNCATE TABLE ${FINAL_TABLE} RESTART IDENTITY;" &> /dev/null
+            print_success "Existing data cleared and ID sequence reset"
         fi
     else
         print_info "Mode: APPEND - Data will be added to existing records"
@@ -577,8 +747,16 @@ main() {
     # Get statistics
     get_import_stats
     
+    # Log import summary with performance metrics
+    log_import_summary "${record_count}"
+    
+    # Write completion to log file
+    log_to_file "Import completed successfully!" "SUCCESS"
+    log_to_file "Log file: ${LOG_FILE}" "INFO"
+    
     echo ""
     print_success "Import completed successfully!"
+    print_info "Log file: ${LOG_FILE}"
     echo ""
 }
 
