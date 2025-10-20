@@ -1,0 +1,55 @@
+{
+  "description": "Field mapping for Montgomery County, Texas parcel data",
+  "created": "2025-10-20",
+  "verified_with_data": "montgomery_parcels.geojson",
+  
+  "county": "montgomery-tx",
+  "county_name": "Montgomery County",
+  "state": "TX",
+  "source_file": "./data/montgomery_parcels.geojson",
+  "source_format": "GeoJSON",
+  "source_crs": "EPSG:4326",
+  "target_crs": "EPSG:4326",
+  "record_count": 325071,
+  "file_size_mb": 837,
+  
+  "notes": [
+    "Montgomery County data is already in EPSG:4326 (WGS84), no CRS transformation needed",
+    "Data uses mixed case field names (OBJECTID, PIN, ownerName, situs, stateCd)",
+    "All fields are directly mapped from GeoJSON properties to database columns",
+    "Geometry type: Polygon (will be converted to MultiPolygon during import)"
+  ],
+  
+  "field_mappings": {
+    "object_id": "OBJECTID",
+    "pin": "PIN",
+    "pid": "pid",
+    "state_cd": "stateCd",
+    "block": "Block",
+    "lot": "Lot",
+    "tract": "Tract",
+    "owner_name": "ownerName",
+    "owner_address": "ownerAddress",
+    "situs": "situs",
+    "as_code": "asCode",
+    "legal_description": "legalDescription",
+    "imprv_actual_year_built": "imprvActualYearBuilt",
+    "imprv_main_area": "imprvMainArea",
+    "p_year": "pYear",
+    "p_version": "pVersion",
+    "p_roll_corr": "pRollCorr",
+    "taxing_units": "taxingUnits",
+    "exemptions": "exemptions",
+    "market_area": "marketArea"
+  },
+  
+  "validation": {
+    "validated_date": "2025-10-20",
+    "validated_by": "AI_Agent",
+    "validation_method": "scripts/validate-geodata.sh",
+    "sample_feature_id": 31045120,
+    "all_fields_present": true,
+    "missing_fields": []
+  }
+}
+

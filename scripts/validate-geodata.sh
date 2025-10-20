@@ -238,24 +238,27 @@ list_fields() {
     print_section "Attribute Fields"
     
     # For GeoJSON, try jq on a valid JSON snippet
+    local fields=""
+    local using_jq=false
+    
     if [[ "${extension}" == "geojson" || "${extension}" == "json" ]] && command -v jq &> /dev/null; then
         echo "Extracting fields using jq (reading first complete feature)..."
-        local fields
-        # Use jq in streaming mode to only parse first feature's properties
-        fields=$(jq -r '.features[0].properties | keys | .[]' "${geodata_file}" 2>/dev/null || true)
+        # Try to extract fields using jq; fall back to ogrinfo if it fails
+        fields=$(jq -r '.features[0].properties | keys | .[]' "${geodata_file}" 2>/dev/null || echo "")
         
         if [[ -n "${fields}" ]]; then
+            using_jq=true
             echo "Fields found in file:"
             echo "${fields}" | while IFS= read -r field; do
                 echo "  ${field}: (use jq to inspect type)"
             done
         else
-            print_error "Could not extract field information with jq"
-            return ${EXIT_ERROR}
+            print_warning "jq extraction failed or empty; falling back to ogrinfo"
         fi
-    else
-        # Fall back to ogrinfo for other formats
-        local fields
+    fi
+    
+    # Fall back to ogrinfo if jq wasn't used or failed
+    if [[ -z "${fields}" ]]; then
         fields=$(ogrinfo -so -al "${geodata_file}" 2>/dev/null | grep -E "^[[:space:]]+[a-zA-Z_][a-zA-Z0-9_]*:" || true)
         
         if [[ -z "${fields}" ]]; then

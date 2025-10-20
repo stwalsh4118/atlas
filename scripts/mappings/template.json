@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Field mapping template for county parcel data import",
+  "_comments": [
+    "This template defines how to map source geospatial data fields to our tax_parcels database schema.",
+    "Create a new mapping file by copying this template and replacing the field values with actual source field names.",
+    "Use null for fields that don't exist in the source data - they will be imported as NULL.",
+    "Field names are case-sensitive and must exactly match the source data field names."
+  ],
+  
+  "county": "example-county-tx",
+  "county_name": "Example County",
+  "state": "TX",
+  "source_file": "./data/example_parcels.geojson",
+  "source_format": "GeoJSON",
+  "source_crs": "EPSG:4326",
+  "target_crs": "EPSG:4326",
+  "record_count": 0,
+  "file_size_mb": 0,
+  
+  "_field_mapping_notes": [
+    "Map each database column (left) to the source data field name (right).",
+    "Common variations are listed in comments to help identify the correct source field.",
+    "Use the validate-geodata.sh script to discover available fields in your source data."
+  ],
+  
+  "field_mappings": {
+    "_comment_primary_ids": "Primary identifiers - required fields",
+    "object_id": "OBJECTID",
+    "_variations_object_id": ["OBJECTID", "OBJECT_ID", "OID", "FID", "FEATURE_ID"],
+    
+    "pin": "PIN",
+    "_variations_pin": ["PIN", "PARCEL_ID", "PARCEL", "APN", "PARCEL_NUM", "PARCEL_NUMBER"],
+    
+    "pid": "PID",
+    "_variations_pid": ["PID", "PROPERTY_ID", "PROP_ID"],
+    
+    "_comment_subdivision": "Parcel subdivision information",
+    "state_cd": "stateCd",
+    "_variations_state_cd": ["stateCd", "STATE_CD", "STATE_CODE", "PARCEL_STATE"],
+    
+    "block": "Block",
+    "_variations_block": ["Block", "BLOCK", "BLK", "BLOCK_NUM"],
+    
+    "lot": "Lot",
+    "_variations_lot": ["Lot", "LOT", "LOT_NUM", "LOT_NUMBER"],
+    
+    "tract": "Tract",
+    "_variations_tract": ["Tract", "TRACT", "TRACT_NUM", "SUBDIVISION"],
+    
+    "_comment_owner": "Owner information",
+    "owner_name": "ownerName",
+    "_variations_owner_name": ["ownerName", "OWNER", "OWNERNAME", "OWNER_NAME", "OWNER_FULL_NAME"],
+    
+    "owner_address": "ownerAddress",
+    "_variations_owner_address": ["ownerAddress", "OWNER_ADDRESS", "OWNER_ADDR", "MAIL_ADDRESS"],
+    
+    "_comment_property": "Property details",
+    "situs": "situs",
+    "_variations_situs": ["situs", "SITUS", "ADDRESS", "SITE_ADDR", "SITE_ADDRESS", "PROPERTY_ADDRESS"],
+    
+    "as_code": "asCode",
+    "_variations_as_code": ["asCode", "AS_CODE", "SUBDIVISION_CODE", "AREA_CODE"],
+    
+    "legal_description": "legalDescription",
+    "_variations_legal_description": ["legalDescription", "LEGAL_DESC", "LEGAL_DESCRIPTION", "LEGAL"],
+    
+    "_comment_improvements": "Improvement/building information",
+    "imprv_actual_year_built": "imprvActualYearBuilt",
+    "_variations_imprv_actual_year_built": ["imprvActualYearBuilt", "YEAR_BUILT", "YR_BUILT", "BUILD_YEAR", "ACTUAL_YEAR_BUILT"],
+    
+    "imprv_main_area": "imprvMainArea",
+    "_variations_imprv_main_area": ["imprvMainArea", "MAIN_AREA", "SQFT", "SQUARE_FEET", "BUILDING_AREA", "LIVING_AREA"],
+    
+    "_comment_tax": "Tax information",
+    "p_year": "pYear",
+    "_variations_p_year": ["pYear", "P_YEAR", "TAX_YEAR", "YEAR", "ASSESSMENT_YEAR"],
+    
+    "p_version": "pVersion",
+    "_variations_p_version": ["pVersion", "P_VERSION", "VERSION", "TAX_VERSION"],
+    
+    "p_roll_corr": "pRollCorr",
+    "_variations_p_roll_corr": ["pRollCorr", "P_ROLL_CORR", "ROLL_CORR", "CORRECTION"],
+    
+    "taxing_units": "taxingUnits",
+    "_variations_taxing_units": ["taxingUnits", "TAXING_UNITS", "TAX_UNITS", "DISTRICTS"],
+    
+    "exemptions": "exemptions",
+    "_variations_exemptions": ["exemptions", "EXEMPTIONS", "TAX_EXEMPTIONS", "EXEMPT"],
+    
+    "market_area": "marketArea",
+    "_variations_market_area": ["marketArea", "MARKET_AREA", "MKT_AREA", "APPRAISAL_AREA"]
+  },
+  
+  "_geometry_notes": [
+    "Geometry is handled automatically by ogr2ogr/shp2pgsql.",
+    "The import script will handle Polygon to MultiPolygon conversion if needed.",
+    "CRS transformation from source_crs to target_crs is handled automatically."
+  ],
+  
+  "_usage_example": {
+    "description": "To use this mapping with the import script:",
+    "command": "./scripts/import-parcels.sh --config ./scripts/mappings/example-county-tx.json"
+  }
+}
+
