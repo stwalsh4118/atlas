@@ -2,7 +2,7 @@
 
 > **Purpose**: Quick reference for existing APIs, data models, and pipeline tools to avoid recreating functionality
 
-Last Updated: 2025-10-21 (Task 5-1)
+Last Updated: 2025-10-21 (Task 5-2)
 
 ---
 
@@ -365,6 +365,55 @@ if parcel == nil {
 
 ---
 
+## Services Package (`api/internal/services`)
+
+### ParcelService
+
+```go
+type ParcelService interface {
+    GetParcelAtPoint(ctx context.Context, lat, lng float64) (*models.TaxParcel, error)
+}
+
+service := services.NewParcelService(repo, log)
+```
+
+**Errors**:
+```go
+services.ErrInvalidCoordinates  // Coordinates out of valid range
+services.ErrParcelNotFound      // No parcel at given point
+```
+
+**Validation Constants**:
+```go
+services.MinLatitude  = -90.0
+services.MaxLatitude  = 90.0
+services.MinLongitude = -180.0
+services.MaxLongitude = 180.0
+```
+
+**Usage**:
+- Validates coordinates before querying repository
+- Transforms repository `(nil, nil)` → `ErrParcelNotFound`
+- Logs queries with structured fields (lat, lng, parcel_id, owner)
+- Returns wrapped errors for database failures
+
+**Example**:
+```go
+parcel, err := service.GetParcelAtPoint(ctx, 30.3477, -95.4502)
+if errors.Is(err, services.ErrInvalidCoordinates) {
+    // Handle validation error
+}
+if errors.Is(err, services.ErrParcelNotFound) {
+    // Handle not found (404)
+}
+if err != nil {
+    // Handle database error (500)
+}
+// Use parcel
+```
+
+---
+
 ## Database Schema
 
 ### tax_parcels Table
@@ -455,6 +504,9 @@ Post-import checks: record counts, NULL checks, SRID verification, spatial index
 
 **Repositories**:
 - `/api/internal/repository/parcel_repository.go` - Parcel data access layer
+
+**Services**:
+- `/api/internal/services/parcel_service.go` - Parcel business logic layer
 
 **Database**:
 - `/api/migrations/000002_create_tax_parcels_table.up.sql` - Main tax_parcels table schema
