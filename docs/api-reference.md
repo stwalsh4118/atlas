@@ -2,7 +2,7 @@
 
 > **Purpose**: Quick reference for existing APIs, data models, and pipeline tools to avoid recreating functionality
 
-Last Updated: 2025-10-21 (Task 5-3)
+Last Updated: 2025-10-21 (Task 5-4)
 
 ---
 
@@ -378,31 +378,37 @@ Both implement `sql.Scanner`, `driver.Valuer`, `json.Marshaler/Unmarshaler` for 
 ### ParcelRepository
 
 ```go
+type ParcelWithDistance struct {
+    Parcel   models.TaxParcel
+    Distance float64  // meters
+}
+
 type ParcelRepository interface {
     FindByPoint(ctx context.Context, lat, lng float64) (*models.TaxParcel, error)
+    FindNearby(ctx context.Context, lat, lng float64, radiusMeters int) ([]ParcelWithDistance, error)
 }
 
 repo := repository.NewParcelRepository(db)
 ```
 
 **Usage**:
-- Returns `(nil, nil)` when no parcel found (not an error)
+- `FindByPoint`: Returns `(nil, nil)` when no parcel found (not an error)
+- `FindNearby`: Returns empty slice when no parcels found (not an error)
 - Returns error only for database failures
-- Uses PostGIS `ST_Contains` with spatial index
+- Uses PostGIS spatial functions with indexes (`ST_Contains`, `ST_DWithin`)
 - Context-aware for timeouts/cancellation
 
 **Example**:
 ```go
+// Point query
 parcel, err := repo.FindByPoint(ctx, 30.3477, -95.4502)
-if err != nil {
-    // Database error
-    return fmt.Errorf("query failed: %w", err)
-}
-if parcel == nil {
-    // Not found (expected case)
-    return ErrParcelNotFound
-}
-// Found parcel
+if err != nil { /* Database error */ }
+if parcel == nil { /* Not found */ }
+
+// Nearby query (1km radius, ordered by distance, max 20 results)
+parcels, err := repo.FindNearby(ctx, 30.3477, -95.4502, 1000)
+if err != nil { /* Database error */ }
+// parcels slice is empty if none found
 ```
 
 ---
@@ -414,6 +420,7 @@ if parcel == nil {
 ```go
 type ParcelService interface {
     GetParcelAtPoint(ctx context.Context, lat, lng float64) (*models.TaxParcel, error)
+    GetNearbyParcels(ctx context.Context, lat, lng float64, radiusMeters int) ([]repository.ParcelWithDistance, error)
 }
 
 service := services.NewParcelService(repo, log)
@@ -423,35 +430,36 @@ service := services.NewParcelService(repo, log)
 ```go
 services.ErrInvalidCoordinates  // Coordinates out of valid range
 services.ErrParcelNotFound      // No parcel at given point
+services.ErrInvalidRadius       // Radius not between 1 and 5000 meters
 ```
 
 **Validation Constants**:
 ```go
-services.MinLatitude  = -90.0
-services.MaxLatitude  = 90.0
-services.MinLongitude = -180.0
-services.MaxLongitude = 180.0
+services.MinLatitude     = -90.0
+services.MaxLatitude     = 90.0
+services.MinLongitude    = -180.0
+services.MaxLongitude    = 180.0
+services.MinRadiusMeters = 1
+services.MaxRadiusMeters = 5000
 ```
 
 **Usage**:
-- Validates coordinates before querying repository
-- Transforms repository `(nil, nil)` → `ErrParcelNotFound`
-- Logs queries with structured fields (lat, lng, parcel_id, owner)
+- Validates coordinates and radius before querying repository
+- Transforms repository `(nil, nil)` → `ErrParcelNotFound` for point queries
+- Logs queries with structured fields
 - Returns wrapped errors for database failures
 
 **Example**:
 ```go
+// Point query
 parcel, err := service.GetParcelAtPoint(ctx, 30.3477, -95.4502)
-if errors.Is(err, services.ErrInvalidCoordinates) {
-    // Handle validation error
-}
-if errors.Is(err, services.ErrParcelNotFound) {
-    // Handle not found (404)
-}
-if err != nil {
-    // Handle database error (500)
-}
-// Use parcel
+if errors.Is(err, services.ErrInvalidCoordinates) { /* validation */ }
+if errors.Is(err, services.ErrParcelNotFound) { /* not found */ }
+
+// Nearby query (returns empty slice if none found)
+parcels, err := service.GetNearbyParcels(ctx, 30.3477, -95.4502, 1000)
+if errors.Is(err, services.ErrInvalidRadius) { /* invalid radius */ }
+// Check len(parcels) for results
 ```
 
 ---
