@@ -2,7 +2,7 @@
 
 > **Purpose**: Quick reference for existing APIs, data models, and pipeline tools to avoid recreating functionality
 
-Last Updated: 2025-10-21
+Last Updated: 2025-10-21 (Task 5-1)
 
 ---
 
@@ -306,23 +306,62 @@ type TaxParcel struct {
     ImprvActualYearBuilt, ImprvMainArea  // Building
     PYear, PVersion, TaxingUnits, Exemptions  // Tax info
     CountyName string                 // Default: "Montgomery"
-    Geom Polygon                      // PostGIS Polygon, SRID 4326
+    Geom MultiPolygon                 // PostGIS MultiPolygon, SRID 4326
     CreatedAt, UpdatedAt time.Time
 }
 ```
 
-**Key Points**: Nullable fields use pointers. Use GORM for DB ops. `TableName()` returns "tax_parcels".
+**Key Points**: Nullable fields use pointers. `TableName()` returns "tax_parcels".
 
-### Polygon Geometry
+### Geometry Types
 
 ```go
 type Polygon struct {
     Coordinates [][][2]float64  // [rings][points][lon,lat]
     SRID int                    // 4326 (WGS84)
 }
+
+type MultiPolygon struct {
+    Coordinates [][][][2]float64  // [polygons][rings][points][lon,lat]
+    SRID int                      // 4326 (WGS84)
+}
 ```
 
-Implements `sql.Scanner`, `driver.Valuer`, `json.Marshaler/Unmarshaler` for PostGIS/GeoJSON.
+Both implement `sql.Scanner`, `driver.Valuer`, `json.Marshaler/Unmarshaler` for PostGIS/GeoJSON.
+
+---
+
+## Repository Package (`api/internal/repository`)
+
+### ParcelRepository
+
+```go
+type ParcelRepository interface {
+    FindByPoint(ctx context.Context, lat, lng float64) (*models.TaxParcel, error)
+}
+
+repo := repository.NewParcelRepository(db)
+```
+
+**Usage**:
+- Returns `(nil, nil)` when no parcel found (not an error)
+- Returns error only for database failures
+- Uses PostGIS `ST_Contains` with spatial index
+- Context-aware for timeouts/cancellation
+
+**Example**:
+```go
+parcel, err := repo.FindByPoint(ctx, 30.3477, -95.4502)
+if err != nil {
+    // Database error
+    return fmt.Errorf("query failed: %w", err)
+}
+if parcel == nil {
+    // Not found (expected case)
+    return ErrParcelNotFound
+}
+// Found parcel
+```
 
 ---
 
@@ -332,12 +371,12 @@ Implements `sql.Scanner`, `driver.Valuer`, `json.Marshaler/Unmarshaler` for Post
 
 - **GiST Index**: `idx_parcels_geom` on geom column (for fast spatial queries)
 - **Indexes**: object_id (unique), pin, owner_name, situs
-- **Geometry**: `GEOMETRY(Polygon, 4326)`
+- **Geometry**: `GEOMETRY(MultiPolygon, 4326)` (allows Polygon or MultiPolygon)
 
 **PostGIS Queries**:
 ```sql
--- Point-in-polygon
-WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint(lon, lat), 4326))
+-- Point-in-polygon (note: lng, lat order for PostGIS)
+WHERE ST_Contains(geom, ST_SetSRID(ST_MakePoint(lng, lat), 4326))
 
 -- Bounding box
 WHERE geom && ST_MakeEnvelope(west, south, east, north, 4326)
@@ -412,7 +451,10 @@ Post-import checks: record counts, NULL checks, SRID verification, spatial index
 
 **Data Models**:
 - `/api/internal/models/tax_parcel.go` - TaxParcel model with GORM tags
-- `/api/internal/models/geometry.go` - Polygon type with PostGIS integration
+- `/api/internal/models/geometry.go` - Polygon and MultiPolygon types with PostGIS integration
+
+**Repositories**:
+- `/api/internal/repository/parcel_repository.go` - Parcel data access layer
 
 **Database**:
 - `/api/migrations/000002_create_tax_parcels_table.up.sql` - Main tax_parcels table schema
