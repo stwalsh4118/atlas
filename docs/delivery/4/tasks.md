@@ -8,7 +8,7 @@ This document lists all tasks associated with PBI 4.
 
 | Task ID | Name                                                          | Status   | Description                                                       |
 | :------ | :------------------------------------------------------------ | :------- | :---------------------------------------------------------------- |
-| 4-1     | [Setup Go dependencies and project structure](./4-1.md)       | Proposed | Add Gin, pgx, zerolog, viper to go.mod and create directory structure |
+| 4-1     | [Setup Go dependencies and project structure](./4-1.md)       | Review | Add Gin, pgx, zerolog, viper to go.mod and create directory structure |
 | 4-2     | [Implement configuration management](./4-2.md)                | Proposed | Create config package to load environment variables using viper |
 | 4-3     | [Create database connection pool with pgx](./4-3.md)          | Proposed | Implement database package with pgx connection pooling and health checks |
 | 4-4     | [Implement structured logging](./4-4.md)                      | Proposed | Create logging package with zerolog for structured logging |
