@@ -94,8 +94,10 @@ db.Pool *pgxpool.Pool  // Direct access to pgx pool
 ### Loading Configuration
 
 ```go
-config.Load() (*Config, error)  // Loads from env vars, validates, returns error if invalid
+config.Load() (*Config, error)  // Loads from .env file + env vars, validates, returns error if invalid
 ```
+
+**Priority**: defaults < `.env` file < shell environment variables
 
 ### Config Structure
 
@@ -122,7 +124,10 @@ DB_POOL_MAX=10 (default)
 CORS_ORIGINS=http://localhost:3000,http://localhost:3001 (default, comma-separated)
 ```
 
-**Note**: `Load()` validates all required fields and returns descriptive errors.
+**Notes**: 
+- `Load()` validates all required fields and returns descriptive errors
+- Create `.env` file from `api/env.example` for local development
+- `.env` file is optional; defaults and shell env vars work without it
 
 ---
 
