@@ -12,7 +12,7 @@ This backlog tracks all Product Backlog Items (PBIs) for the Property Boundary V
 | 1 | Developer | As a developer, I want to set up the project infrastructure so that I have a working development environment | Agreed | [View Details](./1/prd.md) |
 | 2 | Developer | As a developer, I want to create the database schema with spatial indexing so that I can store and query property data efficiently | Agreed | [View Details](./2/prd.md) |
 | 3 | Developer | As a developer, I want to build a data import pipeline so that I can load county parcel data into the database | Agreed | [View Details](./3/prd.md) |
-| 4 | Developer | As a developer, I want to build the core Go API backend so that frontends can query property data | Proposed | [View Details](./4/prd.md) |
+| 4 | Developer | As a developer, I want to build the core Go API backend so that frontends can query property data | Agreed | [View Details](./4/prd.md) |
 | 5 | User | As a user, I want to query property information by clicking on a map location so that I can see ownership and boundary details | Proposed | [View Details](./5/prd.md) |
 | 6 | User | As a user, I want to interact with a Next.js-based map interface so that I can explore properties with a modern web UI | Proposed | [View Details](./6/prd.md) |
 | 7 | User | As a user, I want to interact with a Vue.js-based map interface so that I can explore properties using an alternative frontend implementation | Proposed | [View Details](./7/prd.md) |
@@ -36,6 +36,7 @@ This backlog tracks all Product Backlog Items (PBIs) for the Property Boundary V
 | 20251020-000000 | 2 | Status Change | PBI 2 moved from Proposed to Agreed | User |
 | 20251020-000001 | 2 | PBI Updated | Updated schema to match actual Montgomery County GeoJSON data structure | AI_Agent |
 | 20251020-120000 | 3 | Status Change | PBI 3 moved from Proposed to Agreed | User |
+| 20251021-000000 | 4 | Status Change | PBI 4 moved from Proposed to Agreed | User |
 
 ## Notes
 
