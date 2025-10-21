@@ -131,6 +131,51 @@ CORS_ORIGINS=http://localhost:3000,http://localhost:3001 (default, comma-separat
 
 ---
 
+## Errors Package (`api/internal/errors`)
+
+### Error Helper Functions
+
+```go
+errors.NotFound(c *gin.Context, message string)
+errors.BadRequest(c *gin.Context, message string, details map[string]interface{})
+errors.InternalServerError(c *gin.Context, message string, err error)
+errors.ValidationError(c *gin.Context, validationErrors validator.ValidationErrors)
+```
+
+**Usage**: Always use these helpers for consistent error responses across the API.
+
+### Error Code Constants
+
+```go
+errors.ErrNotFound           = "NOT_FOUND"
+errors.ErrBadRequest         = "BAD_REQUEST"
+errors.ErrInternalServer     = "INTERNAL_SERVER_ERROR"
+errors.ErrValidation         = "VALIDATION_ERROR"
+errors.ErrDatabaseConnection = "DATABASE_CONNECTION_ERROR"
+```
+
+### Error Response Structure
+
+```go
+type ErrorResponse struct {
+    Error ErrorDetail `json:"error"`
+}
+
+type ErrorDetail struct {
+    Code      string                 `json:"code"`
+    Message   string                 `json:"message"`
+    Details   map[string]interface{} `json:"details,omitempty"`
+    RequestID string                 `json:"request_id,omitempty"`
+}
+```
+
+**Note**: 
+- Automatically includes request ID from context
+- Logs with appropriate level (Warn for 4xx, Error for 5xx)
+- InternalServerError logs full error but returns generic message to client
+
+---
+
 ## Handlers Package (`api/internal/handlers`)
 
 ### Constants
@@ -176,6 +221,45 @@ func (h *Handler) SomeEndpoint(c *gin.Context) {
 }
 ```
 
+### Error Handling Pattern
+
+```go
+func (h *Handler) GetResource(c *gin.Context) {
+    id := c.Param("id")
+    
+    // Not found error
+    resource, err := h.db.Find(id)
+    if err == sql.ErrNoRows {
+        errors.NotFound(c, "Resource not found")
+        return
+    }
+    
+    // Internal server error
+    if err != nil {
+        errors.InternalServerError(c, "Failed to retrieve resource", err)
+        return
+    }
+    
+    c.JSON(http.StatusOK, resource)
+}
+
+func (h *Handler) CreateResource(c *gin.Context) {
+    var input CreateInput
+    
+    // Validation error
+    if err := c.ShouldBindJSON(&input); err != nil {
+        if validationErrors, ok := err.(validator.ValidationErrors); ok {
+            errors.ValidationError(c, validationErrors)
+            return
+        }
+        errors.BadRequest(c, "Invalid request body", nil)
+        return
+    }
+    
+    // ... create resource
+}
+```
+
 ### Middleware Stack Order
 
 ```go
@@ -185,17 +269,22 @@ router.Use(middleware.Recovery(log))    // 3. Recovery catches panics
 router.Use(middleware.CORS(origins))    // 4. CORS last
 ```
 
-### Error Response Format (from Recovery middleware)
+### Error Response Format (standardized)
 
 ```json
 {
   "error": {
     "code": "ERROR_CODE",
     "message": "Human-readable message",
+    "details": {
+      "field": "value"
+    },
     "request_id": "uuid"
   }
 }
 ```
+
+**Note**: Use `errors` package helpers instead of manually creating error responses.
 
 ### Dependencies
 
@@ -301,9 +390,10 @@ Post-import checks: record counts, NULL checks, SRID verification, spatial index
 
 - [ ] Get logger from context using `middleware.GetLogger(c)`
 - [ ] Use structured logging with fields map
-- [ ] Use `c.JSON()` for responses
-- [ ] Handle errors gracefully (don't panic)
-- [ ] Add request ID to error responses if needed
+- [ ] Use `errors` package helpers for error responses
+- [ ] Use `c.JSON()` for success responses
+- [ ] Handle validation errors with `errors.ValidationError()`
+- [ ] Use `errors.InternalServerError()` for unexpected errors (never expose internals)
 - [ ] Write unit tests (mocked) and integration tests (real DB)
 - [ ] Follow existing response formats
 
@@ -317,6 +407,7 @@ Post-import checks: record counts, NULL checks, SRID verification, spatial index
 - `/api/internal/logger/logger.go` - Logger methods
 - `/api/internal/database/postgres.go` - Database operations
 - `/api/internal/config/config.go` - Configuration loading
+- `/api/internal/errors/errors.go` - Standardized error handling utilities
 - `/api/internal/handlers/health.go` - Example handler implementation
 
 **Data Models**:

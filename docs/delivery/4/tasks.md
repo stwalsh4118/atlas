@@ -15,7 +15,7 @@ This document lists all tasks associated with PBI 4.
 | 4-5     | [Setup Gin router with middleware stack](./4-5.md)            | Review | Create Gin router with CORS, logging, recovery, and request ID middleware |
 | 4-6     | [Implement health check endpoints](./4-6.md)                  | Done | Create health and readiness check handlers with database connectivity |
 | 4-7     | [Refactor main.go to use new architecture](./4-7.md)          | Review | Update cmd/server/main.go to use Gin, config, database, and middleware |
-| 4-8     | [Add error handling utilities](./4-8.md)                      | Proposed | Create error response structures and handling utilities |
+| 4-8     | [Add error handling utilities](./4-8.md)                      | Done | Create error response structures and handling utilities |
 | 4-9     | [Setup golangci-lint configuration](./4-9.md)                 | Proposed | Create .golangci.yml with Go best practices linting rules |
 | 4-10    | [Update API README with new architecture](./4-10.md)          | Proposed | Document new configuration, running instructions, and architecture |
 | 4-11    | [E2E CoS Test for Core Go API Backend](./4-11.md)            | Proposed | End-to-end test verifying all acceptance criteria are met |
