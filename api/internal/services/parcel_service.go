@@ -18,10 +18,17 @@ const (
 	MaxLongitude = 180.0
 )
 
+// Radius validation constants
+const (
+	MinRadiusMeters = 1
+	MaxRadiusMeters = 5000
+)
+
 // Service-level errors
 var (
 	ErrInvalidCoordinates = errors.New("invalid coordinates")
 	ErrParcelNotFound     = errors.New("parcel not found")
+	ErrInvalidRadius      = errors.New("radius must be between 1 and 5000 meters")
 )
 
 // ParcelService defines the interface for parcel business logic operations.
@@ -31,6 +38,13 @@ type ParcelService interface {
 	// Returns ErrParcelNotFound if no parcel exists at the point.
 	// Returns error for database failures.
 	GetParcelAtPoint(ctx context.Context, lat, lng float64) (*models.TaxParcel, error)
+
+	// GetNearbyParcels retrieves all parcels within the specified radius of the given point.
+	// Returns ErrInvalidCoordinates if coordinates are out of valid range.
+	// Returns ErrInvalidRadius if radius is not between 1 and 5000 meters.
+	// Returns empty slice if no parcels found (not an error).
+	// Returns error for database failures.
+	GetNearbyParcels(ctx context.Context, lat, lng float64, radiusMeters int) ([]repository.ParcelWithDistance, error)
 }
 
 // parcelService is the concrete implementation of ParcelService.
@@ -105,4 +119,68 @@ func (s *parcelService) GetParcelAtPoint(ctx context.Context, lat, lng float64) 
 	})
 
 	return parcel, nil
+}
+
+// GetNearbyParcels retrieves all parcels within the specified radius of the given point.
+// It validates coordinates and radius, logs the query, and returns results ordered by distance.
+func (s *parcelService) GetNearbyParcels(ctx context.Context, lat, lng float64, radiusMeters int) ([]repository.ParcelWithDistance, error) {
+	// Validate latitude range
+	if lat < MinLatitude || lat > MaxLatitude {
+		s.log.Warn("Invalid latitude provided", map[string]interface{}{
+			"lat":    lat,
+			"lng":    lng,
+			"radius": radiusMeters,
+		})
+		return nil, fmt.Errorf("%w: latitude must be between %f and %f, got %f",
+			ErrInvalidCoordinates, MinLatitude, MaxLatitude, lat)
+	}
+
+	// Validate longitude range
+	if lng < MinLongitude || lng > MaxLongitude {
+		s.log.Warn("Invalid longitude provided", map[string]interface{}{
+			"lat":    lat,
+			"lng":    lng,
+			"radius": radiusMeters,
+		})
+		return nil, fmt.Errorf("%w: longitude must be between %f and %f, got %f",
+			ErrInvalidCoordinates, MinLongitude, MaxLongitude, lng)
+	}
+
+	// Validate radius range
+	if radiusMeters < MinRadiusMeters || radiusMeters > MaxRadiusMeters {
+		s.log.Warn("Invalid radius provided", map[string]interface{}{
+			"lat":    lat,
+			"lng":    lng,
+			"radius": radiusMeters,
+		})
+		return nil, fmt.Errorf("%w: got %d", ErrInvalidRadius, radiusMeters)
+	}
+
+	// Log the query
+	s.log.Info("Querying nearby parcels", map[string]interface{}{
+		"lat":    lat,
+		"lng":    lng,
+		"radius": radiusMeters,
+	})
+
+	// Query repository
+	parcels, err := s.repo.FindNearby(ctx, lat, lng, radiusMeters)
+	if err != nil {
+		s.log.Error("Failed to query nearby parcels", err, map[string]interface{}{
+			"lat":    lat,
+			"lng":    lng,
+			"radius": radiusMeters,
+		})
+		return nil, fmt.Errorf("failed to query nearby parcels: %w", err)
+	}
+
+	// Log results
+	s.log.Info("Nearby parcels found", map[string]interface{}{
+		"lat":    lat,
+		"lng":    lng,
+		"radius": radiusMeters,
+		"count":  len(parcels),
+	})
+
+	return parcels, nil
 }
