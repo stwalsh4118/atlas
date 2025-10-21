@@ -2,7 +2,7 @@
 
 > **Purpose**: Quick reference for existing APIs, data models, and pipeline tools to avoid recreating functionality
 
-Last Updated: 2025-10-21 (Task 5-2)
+Last Updated: 2025-10-21 (Task 5-3)
 
 ---
 
@@ -195,6 +195,48 @@ handler.Health(c *gin.Context)  // GET /health - always 200 OK
 handler.Ready(c *gin.Context)   // GET /health/ready - checks DB (200 or 503)
 handler.Info(c *gin.Context)    // GET /api/v1/info - returns version, env, uptime
 ```
+
+### Parcel Handler
+
+```go
+handlers.NewParcelHandler(service services.ParcelService) *ParcelHandler
+
+// Handler methods
+handler.AtPoint(c *gin.Context)  // GET /api/v1/parcels/at-point - find parcel by lat/lng
+```
+
+**Request DTOs**:
+```go
+type AtPointRequest struct {
+    Lat float64 `form:"lat" binding:"required,min=-90,max=90"`
+    Lng float64 `form:"lng" binding:"required,min=-180,max=180"`
+}
+```
+
+**Response DTOs**:
+```go
+type ParcelResponse struct {
+    Parcel *ParcelData `json:"parcel"`
+}
+
+type ParcelData struct {
+    Geometry     map[string]interface{} `json:"geometry"`
+    ParcelID     string                 `json:"parcel_id,omitempty"`
+    OwnerName    string                 `json:"owner_name,omitempty"`
+    SitusAddress string                 `json:"situs_address,omitempty"`
+    PropType     string                 `json:"prop_type,omitempty"`
+    LandUse      string                 `json:"land_use,omitempty"`
+    CountyName   string                 `json:"county_name"`
+    Acres        float64                `json:"acres,omitempty"`
+    ID           uint                   `json:"id"`
+}
+```
+
+**Error Handling**:
+- Returns 400 for validation errors (missing/invalid coordinates)
+- Returns 404 when no parcel found at the given point
+- Returns 500 for database or unexpected errors
+- Uses `errors` package helpers for consistent responses
 
 ---
 
@@ -496,7 +538,8 @@ Post-import checks: record counts, NULL checks, SRID verification, spatial index
 - `/api/internal/database/postgres.go` - Database operations
 - `/api/internal/config/config.go` - Configuration loading
 - `/api/internal/errors/errors.go` - Standardized error handling utilities
-- `/api/internal/handlers/health.go` - Example handler implementation
+- `/api/internal/handlers/health.go` - Health check handler implementation
+- `/api/internal/handlers/parcel_handler.go` - Parcel query handler implementation
 
 **Data Models**:
 - `/api/internal/models/tax_parcel.go` - TaxParcel model with GORM tags
