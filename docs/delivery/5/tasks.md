@@ -8,7 +8,7 @@ This document lists all tasks associated with PBI 5.
 
 | Task ID | Name | Status | Description |
 | :------ | :--- | :------ | :---------- |
-| 5-1 | [Create parcel repository with FindByPoint method](./5-1.md) | Review | Implement repository layer with ST_Contains spatial query |
+| 5-1 | [Create parcel repository with FindByPoint method](./5-1.md) | Done | Implement repository layer with ST_Contains spatial query |
 | 5-2 | [Create parcel service with GetParcelAtPoint method](./5-2.md) | Proposed | Implement service layer for point-in-polygon business logic |
 | 5-3 | [Implement at-point endpoint with DTOs and validation](./5-3.md) | Proposed | Create handler, request/response DTOs, validation, and route registration |
 | 5-4 | [Extend repository and service for nearby query](./5-4.md) | Proposed | Add FindNearby and GetNearbyParcels methods with ST_DWithin |
