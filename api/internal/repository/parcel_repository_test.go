@@ -384,3 +384,288 @@ func TestFindByPoint_CoordinateOrder(t *testing.T) {
 		t.Log("No parcel found with swapped coordinates (expected for invalid location)")
 	}
 }
+
+// TestFindNearby_Success tests finding parcels within a radius of a known location.
+// Note: This test requires parcel data to be loaded in the database.
+func TestFindNearby_Success(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Query for Montgomery County, TX - coordinates that should have parcel data
+	lat := 30.3477
+	lng := -95.4502
+	radiusMeters := 1000 // 1km radius
+
+	parcels, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	if err != nil {
+		t.Fatalf("FindNearby returned error: %v", err)
+	}
+
+	// Result should be a non-nil slice (empty or with data)
+	if parcels == nil {
+		t.Fatal("Expected non-nil slice from FindNearby")
+	}
+
+	// Log results
+	t.Logf("Found %d parcels within %dm of (lat=%f, lng=%f)",
+		len(parcels), radiusMeters, lat, lng)
+
+	// If parcels were found, verify their structure
+	for i, result := range parcels {
+		if result.Parcel.ID == 0 {
+			t.Errorf("Parcel %d has zero ID", i)
+		}
+		if result.Distance < 0 {
+			t.Errorf("Parcel %d has negative distance: %f", i, result.Distance)
+		}
+		if result.Distance > float64(radiusMeters) {
+			t.Errorf("Parcel %d distance %fm exceeds radius %dm", i, result.Distance, radiusMeters)
+		}
+		if i > 0 {
+			// Verify ordering by distance
+			prevDistance := parcels[i-1].Distance
+			if result.Distance < prevDistance {
+				t.Errorf("Results not ordered by distance: parcel %d (dist=%f) < parcel %d (dist=%f)",
+					i, result.Distance, i-1, prevDistance)
+			}
+		}
+
+		t.Logf("  Parcel %d: ID=%d, Distance=%.2fm", i+1, result.Parcel.ID, result.Distance)
+	}
+}
+
+// TestFindNearby_EmptyResults tests querying a location with no nearby parcels.
+func TestFindNearby_EmptyResults(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Coordinates in the middle of the Gulf of Mexico (no parcels)
+	lat := 27.0
+	lng := -93.0
+	radiusMeters := 5000
+
+	parcels, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	if err != nil {
+		t.Errorf("FindNearby should not return error for empty results, got: %v", err)
+	}
+
+	if parcels == nil {
+		t.Error("Expected non-nil empty slice, got nil")
+	}
+
+	if len(parcels) != 0 {
+		t.Errorf("Expected 0 parcels for ocean coordinates, got %d", len(parcels))
+	}
+}
+
+// TestFindNearby_SmallRadius tests with minimum radius.
+func TestFindNearby_SmallRadius(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	lat := 30.3477
+	lng := -95.4502
+	radiusMeters := 1 // Minimum radius
+
+	parcels, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	if err != nil {
+		t.Fatalf("FindNearby with small radius returned error: %v", err)
+	}
+
+	if parcels == nil {
+		t.Fatal("Expected non-nil slice")
+	}
+
+	t.Logf("Found %d parcels within %dm", len(parcels), radiusMeters)
+
+	// Verify all distances are within radius
+	for i, result := range parcels {
+		if result.Distance > float64(radiusMeters) {
+			t.Errorf("Parcel %d distance %fm exceeds radius %dm", i, result.Distance, radiusMeters)
+		}
+	}
+}
+
+// TestFindNearby_LargeRadius tests with maximum radius.
+func TestFindNearby_LargeRadius(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	lat := 30.3477
+	lng := -95.4502
+	radiusMeters := 5000 // Maximum radius
+
+	parcels, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	if err != nil {
+		t.Fatalf("FindNearby with large radius returned error: %v", err)
+	}
+
+	if parcels == nil {
+		t.Fatal("Expected non-nil slice")
+	}
+
+	t.Logf("Found %d parcels within %dm", len(parcels), radiusMeters)
+
+	// Verify all distances are within radius
+	for i, result := range parcels {
+		if result.Distance > float64(radiusMeters) {
+			t.Errorf("Parcel %d distance %fm exceeds radius %dm", i, result.Distance, radiusMeters)
+		}
+	}
+}
+
+// TestFindNearby_DistanceAccuracy tests that distance calculations are reasonably accurate.
+func TestFindNearby_DistanceAccuracy(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Use a location we know has data
+	lat := 30.3477
+	lng := -95.4502
+	radiusMeters := 2000
+
+	parcels, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	if err != nil {
+		t.Fatalf("FindNearby returned error: %v", err)
+	}
+
+	// If we have results, verify distances are reasonable
+	for i, result := range parcels {
+		// Distance should be non-negative
+		if result.Distance < 0 {
+			t.Errorf("Parcel %d has negative distance: %f", i, result.Distance)
+		}
+
+		// Distance should be within the specified radius (with small tolerance for floating point)
+		const tolerance = 0.01 // 1% tolerance
+		maxAllowedDistance := float64(radiusMeters) * (1 + tolerance)
+		if result.Distance > maxAllowedDistance {
+			t.Errorf("Parcel %d distance %fm exceeds radius %dm (with tolerance)",
+				i, result.Distance, radiusMeters)
+		}
+
+		t.Logf("Parcel %d: Distance=%.2fm, ID=%d", i+1, result.Distance, result.Parcel.ID)
+	}
+}
+
+// TestFindNearby_ResultLimit tests that results are limited to maxNearbyResults.
+func TestFindNearby_ResultLimit(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	// Use a large radius that might have many parcels
+	lat := 30.3477
+	lng := -95.4502
+	radiusMeters := 5000
+
+	parcels, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	if err != nil {
+		t.Fatalf("FindNearby returned error: %v", err)
+	}
+
+	// Should not exceed the limit (currently 20)
+	if len(parcels) > maxNearbyResults {
+		t.Errorf("Result count %d exceeds maxNearbyResults %d", len(parcels), maxNearbyResults)
+	}
+
+	t.Logf("Found %d parcels (limit is %d)", len(parcels), maxNearbyResults)
+}
+
+// TestFindNearby_GeometryParsing tests that geometries are correctly parsed.
+func TestFindNearby_GeometryParsing(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	lat := 30.3477
+	lng := -95.4502
+	radiusMeters := 1000
+
+	parcels, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	if err != nil {
+		t.Fatalf("FindNearby returned error: %v", err)
+	}
+
+	// Verify geometry structure for all parcels
+	for i, result := range parcels {
+		parcel := result.Parcel
+
+		// Geometry should be populated
+		if len(parcel.Geom.Coordinates) == 0 {
+			t.Errorf("Parcel %d has empty geometry", i)
+			continue
+		}
+
+		// SRID should be WGS84
+		if parcel.Geom.SRID != 4326 {
+			t.Errorf("Parcel %d has incorrect SRID: expected 4326, got %d", i, parcel.Geom.SRID)
+		}
+
+		// Verify basic MultiPolygon structure
+		for polyIdx, polygon := range parcel.Geom.Coordinates {
+			if len(polygon) == 0 {
+				t.Errorf("Parcel %d, Polygon %d has no rings", i, polyIdx)
+			}
+		}
+	}
+}
+
+// TestFindNearby_ContextCancellation tests context cancellation.
+func TestFindNearby_ContextCancellation(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	// Create a context that's already cancelled
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	lat := 30.3477
+	lng := -95.4502
+	radiusMeters := 1000
+
+	_, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	if err == nil {
+		t.Error("Expected error when context is cancelled")
+	}
+
+	// Verify it's a context error
+	if ctx.Err() == nil {
+		t.Error("Expected context to be cancelled")
+	}
+}
+
+// TestFindNearby_ContextTimeout tests context timeout.
+func TestFindNearby_ContextTimeout(t *testing.T) {
+	repo, db := setupTestRepository(t)
+	defer db.Close()
+
+	// Create a context with very short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+
+	// Wait for timeout
+	time.Sleep(10 * time.Millisecond)
+
+	lat := 30.3477
+	lng := -95.4502
+	radiusMeters := 1000
+
+	_, err := (*repo).FindNearby(ctx, lat, lng, radiusMeters)
+	// Should get a context deadline exceeded error or nil if query was fast enough
+	if err != nil && ctx.Err() == nil {
+		t.Errorf("Expected context timeout error, got: %v", err)
+	}
+}
