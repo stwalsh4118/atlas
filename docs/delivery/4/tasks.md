@@ -13,7 +13,7 @@ This document lists all tasks associated with PBI 4.
 | 4-3     | [Create database connection pool with pgx](./4-3.md)          | Done | Implement database package with pgx connection pooling and health checks |
 | 4-4     | [Implement structured logging](./4-4.md)                      | Done | Create logging package with zerolog for structured logging |
 | 4-5     | [Setup Gin router with middleware stack](./4-5.md)            | Review | Create Gin router with CORS, logging, recovery, and request ID middleware |
-| 4-6     | [Implement health check endpoints](./4-6.md)                  | Proposed | Create health and readiness check handlers with database connectivity |
+| 4-6     | [Implement health check endpoints](./4-6.md)                  | Done | Create health and readiness check handlers with database connectivity |
 | 4-7     | [Refactor main.go to use new architecture](./4-7.md)          | Proposed | Update cmd/server/main.go to use Gin, config, database, and middleware |
 | 4-8     | [Add error handling utilities](./4-8.md)                      | Proposed | Create error response structures and handling utilities |
 | 4-9     | [Setup golangci-lint configuration](./4-9.md)                 | Proposed | Create .golangci.yml with Go best practices linting rules |
