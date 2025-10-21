@@ -36,8 +36,9 @@ type CORSConfig struct {
 	Origins []string
 }
 
-// Load reads configuration from environment variables.
+// Load reads configuration from environment variables and .env file.
 // It uses viper to read values and provides sensible defaults for development.
+// Priority: .env file values override defaults, but shell environment variables override both.
 func Load() (*Config, error) {
 	v := viper.New()
 
@@ -52,7 +53,24 @@ func Load() (*Config, error) {
 	v.SetDefault("DB_POOL_MAX", 10)
 	v.SetDefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001")
 
-	// Bind environment variables
+	// Configure viper to read from .env file
+	v.SetConfigName(".env")
+	v.SetConfigType("env")
+	v.AddConfigPath(".")      // Look in current directory
+	v.AddConfigPath("./api")  // Look in api directory (for running from root)
+	v.AddConfigPath("../")    // Look in parent directory (for running from api/cmd/server)
+	v.AddConfigPath("../../") // Look two levels up
+
+	// Try to read .env file (don't fail if it doesn't exist)
+	if err := v.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
+			// Config file was found but another error was produced
+			return nil, fmt.Errorf("error reading config file: %w", err)
+		}
+		// Config file not found; using defaults and environment variables only
+	}
+
+	// Bind environment variables (these override .env file values)
 	v.AutomaticEnv()
 
 	// Build configuration
