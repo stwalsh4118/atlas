@@ -8,10 +8,16 @@ import (
 func TestLoad_WithDefaults(t *testing.T) {
 	// Clear all environment variables
 	clearConfigEnvVars()
-	
+
 	// Set only required env var (password has no default)
-	os.Setenv("DB_PASSWORD", "testpass")
-	defer os.Unsetenv("DB_PASSWORD")
+	if err := os.Setenv("DB_PASSWORD", "testpass"); err != nil {
+		t.Fatalf("Failed to set DB_PASSWORD: %v", err)
+	}
+	defer func() {
+		if err := os.Unsetenv("DB_PASSWORD"); err != nil {
+			t.Errorf("Failed to unset DB_PASSWORD: %v", err)
+		}
+	}()
 
 	cfg, err := Load()
 	if err != nil {
@@ -50,16 +56,23 @@ func TestLoad_WithDefaults(t *testing.T) {
 
 func TestLoad_WithEnvironmentVariables(t *testing.T) {
 	// Set all environment variables
-	os.Setenv("PORT", "9090")
-	os.Setenv("ENV", "production")
-	os.Setenv("DB_HOST", "localhost")
-	os.Setenv("DB_PORT", "5433")
-	os.Setenv("DB_NAME", "testdb")
-	os.Setenv("DB_USER", "testuser")
-	os.Setenv("DB_PASSWORD", "testpass")
-	os.Setenv("DB_POOL_MIN", "5")
-	os.Setenv("DB_POOL_MAX", "20")
-	os.Setenv("CORS_ORIGINS", "http://example.com,https://app.example.com")
+	envVars := map[string]string{
+		"PORT":         "9090",
+		"ENV":          "production",
+		"DB_HOST":      "localhost",
+		"DB_PORT":      "5433",
+		"DB_NAME":      "testdb",
+		"DB_USER":      "testuser",
+		"DB_PASSWORD":  "testpass",
+		"DB_POOL_MIN":  "5",
+		"DB_POOL_MAX":  "20",
+		"CORS_ORIGINS": "http://example.com,https://app.example.com",
+	}
+	for key, value := range envVars {
+		if err := os.Setenv(key, value); err != nil {
+			t.Fatalf("Failed to set %s: %v", key, err)
+		}
+	}
 	defer clearConfigEnvVars()
 
 	cfg, err := Load()
@@ -177,8 +190,8 @@ func TestValidate_InvalidPoolSizes(t *testing.T) {
 
 func TestValidate_MissingRequiredFields(t *testing.T) {
 	tests := []struct {
-		name   string
 		config *Config
+		name   string
 	}{
 		{
 			name: "missing port",
@@ -287,15 +300,13 @@ func TestParseOrigins(t *testing.T) {
 
 // Helper function to clear all config-related environment variables
 func clearConfigEnvVars() {
-	os.Unsetenv("PORT")
-	os.Unsetenv("ENV")
-	os.Unsetenv("DB_HOST")
-	os.Unsetenv("DB_PORT")
-	os.Unsetenv("DB_NAME")
-	os.Unsetenv("DB_USER")
-	os.Unsetenv("DB_PASSWORD")
-	os.Unsetenv("DB_POOL_MIN")
-	os.Unsetenv("DB_POOL_MAX")
-	os.Unsetenv("CORS_ORIGINS")
+	envVars := []string{
+		"PORT", "ENV", "DB_HOST", "DB_PORT", "DB_NAME",
+		"DB_USER", "DB_PASSWORD", "DB_POOL_MIN", "DB_POOL_MAX", "CORS_ORIGINS",
+	}
+	for _, key := range envVars {
+		// Explicitly ignore errors in cleanup helper
+		//nolint:errcheck
+		os.Unsetenv(key)
+	}
 }
-

@@ -35,8 +35,15 @@ func NewPostgresPool(ctx context.Context, cfg config.DatabaseConfig) (*Database,
 	}
 
 	// Configure connection pool settings
-	poolConfig.MinConns = int32(cfg.PoolMin)
-	poolConfig.MaxConns = int32(cfg.PoolMax)
+	// Validate and convert pool sizes (should already be validated in config)
+	if cfg.PoolMin < 0 || cfg.PoolMin > 2147483647 {
+		return nil, fmt.Errorf("invalid pool min size: %d", cfg.PoolMin)
+	}
+	if cfg.PoolMax < 0 || cfg.PoolMax > 2147483647 {
+		return nil, fmt.Errorf("invalid pool max size: %d", cfg.PoolMax)
+	}
+	poolConfig.MinConns = int32(cfg.PoolMin) // #nosec G115
+	poolConfig.MaxConns = int32(cfg.PoolMax) // #nosec G115
 
 	// Set connection timeouts
 	poolConfig.ConnConfig.ConnectTimeout = 5 * time.Second

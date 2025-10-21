@@ -15,13 +15,18 @@ import (
 func TestNew_DevelopmentMode(t *testing.T) {
 	// Capture stdout
 	old := os.Stdout
-	r, w, _ := os.Pipe()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("Failed to create pipe: %v", err)
+	}
 	os.Stdout = w
 
 	logger := New("development")
 
 	// Restore stdout
-	w.Close()
+	if err := w.Close(); err != nil {
+		t.Errorf("Failed to close pipe writer: %v", err)
+	}
 	os.Stdout = old
 
 	if logger == nil {
@@ -33,7 +38,9 @@ func TestNew_DevelopmentMode(t *testing.T) {
 
 	// Read captured output
 	var buf bytes.Buffer
-	io.Copy(&buf, r)
+	if _, err := io.Copy(&buf, r); err != nil {
+		t.Errorf("Failed to copy pipe output: %v", err)
+	}
 }
 
 func TestNew_ProductionMode(t *testing.T) {

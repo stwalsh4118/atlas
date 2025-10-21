@@ -38,27 +38,11 @@ func setupTestRouter(handler *HealthHandler) *gin.Engine {
 	return router
 }
 
-// setupHealthHandler creates a HealthHandler with a mock database.
-func setupHealthHandler(pingErr error, env string) (*HealthHandler, *MockDatabase) {
-	mockDB := &MockDatabase{pingErr: pingErr}
-	// We need to wrap the mock in a database.Database struct
-	// Since we can't create it directly, we'll use a different approach
-	db := &database.Database{Pool: nil}
-
-	handler := &HealthHandler{
-		db:        db,
-		startTime: time.Now().Add(-1 * time.Hour), // Set start time to 1 hour ago for testing
-		env:       env,
-	}
-
-	return handler, mockDB
-}
-
 func TestHealthHandler_Health(t *testing.T) {
 	tests := []struct {
 		name           string
-		expectedStatus int
 		expectedBody   HealthResponse
+		expectedStatus int
 	}{
 		{
 			name:           "health check returns 200 OK",
@@ -116,9 +100,9 @@ func TestHealthHandler_Ready_DatabaseConnected(t *testing.T) {
 
 func TestHealthHandler_Info(t *testing.T) {
 	tests := []struct {
+		startTime   time.Time
 		name        string
 		env         string
-		startTime   time.Time
 		checkUptime bool
 	}{
 		{
@@ -182,8 +166,8 @@ func TestHealthHandler_Info(t *testing.T) {
 func TestFormatUptime(t *testing.T) {
 	tests := []struct {
 		name     string
-		duration time.Duration
 		expected string
+		duration time.Duration
 	}{
 		{
 			name:     "formats seconds only",

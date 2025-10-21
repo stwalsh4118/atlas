@@ -66,7 +66,11 @@ func TestPolygonValue(t *testing.T) {
 			// For valid polygon, verify it's valid GeoJSON
 			if !tt.wantNil && !tt.wantError && val != nil {
 				var geom map[string]interface{}
-				if err := json.Unmarshal([]byte(val.(string)), &geom); err != nil {
+				strVal, ok := val.(string)
+				if !ok {
+					t.Errorf("Value() did not return string, got %T", val)
+				}
+				if err := json.Unmarshal([]byte(strVal), &geom); err != nil {
 					t.Errorf("Value() did not return valid JSON: %v", err)
 				}
 				if geom["type"] != "Polygon" {
@@ -80,8 +84,8 @@ func TestPolygonValue(t *testing.T) {
 // TestPolygonScan tests the Scan method (reading from database)
 func TestPolygonScan(t *testing.T) {
 	tests := []struct {
-		name      string
 		input     interface{}
+		name      string
 		wantError bool
 		wantNil   bool
 	}{

@@ -10,8 +10,8 @@ import (
 // Config holds all application configuration.
 type Config struct {
 	Server   ServerConfig
-	Database DatabaseConfig
 	CORS     CORSConfig
+	Database DatabaseConfig
 }
 
 // ServerConfig holds HTTP server configuration.

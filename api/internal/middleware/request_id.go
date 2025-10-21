@@ -17,7 +17,7 @@ func RequestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Check if request ID already exists in header (from upstream proxy)
 		requestID := c.GetHeader(RequestIDHeader)
-		
+
 		// Generate new UUID if not present
 		if requestID == "" {
 			requestID = uuid.New().String()
@@ -43,4 +43,3 @@ func GetRequestID(c *gin.Context) string {
 	}
 	return ""
 }
-
