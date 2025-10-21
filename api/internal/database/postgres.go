@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/sean/atlas/api/internal/config"
+	"github.com/stwalsh4118/atlas/api/internal/config"
 )
 
 // Database wraps the pgx connection pool and provides database operations.

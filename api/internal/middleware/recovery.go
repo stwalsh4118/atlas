@@ -6,7 +6,7 @@ import (
 	"runtime/debug"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sean/atlas/api/internal/logger"
+	"github.com/stwalsh4118/atlas/api/internal/logger"
 )
 
 // Recovery creates a middleware that recovers from panics and logs them.
@@ -42,8 +42,8 @@ func Recovery(log *logger.Logger) gin.HandlerFunc {
 				// Return 500 error
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error": gin.H{
-						"code":    "INTERNAL_SERVER_ERROR",
-						"message": "An unexpected error occurred",
+						"code":       "INTERNAL_SERVER_ERROR",
+						"message":    "An unexpected error occurred",
 						"request_id": requestID,
 					},
 				})
@@ -56,4 +56,3 @@ func Recovery(log *logger.Logger) gin.HandlerFunc {
 		c.Next()
 	}
 }
-

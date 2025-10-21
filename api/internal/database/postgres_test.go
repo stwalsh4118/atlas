@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sean/atlas/api/internal/config"
+	"github.com/stwalsh4118/atlas/api/internal/config"
 )
 
 // Test configuration for local PostgreSQL

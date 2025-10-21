@@ -11,9 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/sean/atlas/api/internal/database"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/stwalsh4118/atlas/api/internal/database"
 )
 
 // MockDatabase is a mock implementation of the database.Database for testing.

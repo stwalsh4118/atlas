@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sean/atlas/api/internal/config"
-	"github.com/sean/atlas/api/internal/database"
-	"github.com/sean/atlas/api/internal/handlers"
-	"github.com/sean/atlas/api/internal/logger"
-	"github.com/sean/atlas/api/internal/middleware"
+	"github.com/stwalsh4118/atlas/api/internal/config"
+	"github.com/stwalsh4118/atlas/api/internal/database"
+	"github.com/stwalsh4118/atlas/api/internal/handlers"
+	"github.com/stwalsh4118/atlas/api/internal/logger"
+	"github.com/stwalsh4118/atlas/api/internal/middleware"
 )
 
 const (

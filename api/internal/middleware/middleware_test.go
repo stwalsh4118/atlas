@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sean/atlas/api/internal/logger"
+	"github.com/stwalsh4118/atlas/api/internal/logger"
 )
 
 func init() {

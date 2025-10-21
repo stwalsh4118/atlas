@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sean/atlas/api/internal/database"
-	"github.com/sean/atlas/api/internal/middleware"
+	"github.com/stwalsh4118/atlas/api/internal/database"
+	"github.com/stwalsh4118/atlas/api/internal/middleware"
 )
 
 const (

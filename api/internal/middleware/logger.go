@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/sean/atlas/api/internal/logger"
+	"github.com/stwalsh4118/atlas/api/internal/logger"
 )
 
 // Logger creates a middleware that logs HTTP requests using structured logging.
