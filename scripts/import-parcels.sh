@@ -48,6 +48,7 @@ DB_PASSWORD="${DB_PASSWORD:-postgres}"
 MODE="replace"  # replace or append
 DRY_RUN=false
 VALIDATE_GEOMETRIES=false
+POST_IMPORT_VALIDATION=false
 GEOJSON_FILE=""
 MAPPING_FILE=""
 
@@ -154,6 +155,7 @@ Database Options:
 Import Options:
   --mode <mode>           Import mode: 'replace' or 'append' (default: replace)
   --validate-geometries   Run geometry validation and repair after import
+  --post-validate         Run comprehensive post-import validation
   --dry-run               Preview operations without executing
 
 Other Options:
@@ -649,6 +651,10 @@ while [[ $# -gt 0 ]]; do
             VALIDATE_GEOMETRIES=true
             shift
             ;;
+        --post-validate)
+            POST_IMPORT_VALIDATION=true
+            shift
+            ;;
         --dry-run)
             DRY_RUN=true
             shift
@@ -776,6 +782,32 @@ main() {
         else
             print_warning "Validation script not found: ${validation_script}"
             log_to_file "Validation script not found" "WARN"
+        fi
+    fi
+    
+    # Run post-import validation if requested
+    if [ "${POST_IMPORT_VALIDATION}" = true ]; then
+        echo ""
+        print_step "Running post-import validation..."
+        log_to_file "Running post-import validation" "INFO"
+        
+        local post_validation_script="${SCRIPT_DIR}/post-import-validation.sh"
+        if [ -f "${post_validation_script}" ]; then
+            if "${post_validation_script}" \
+                --db-host "${DB_HOST}" \
+                --db-port "${DB_PORT}" \
+                --db-name "${DB_NAME}" \
+                --db-user "${DB_USER}" \
+                --db-password "${DB_PASSWORD}"; then
+                print_success "Post-import validation passed"
+                log_to_file "Post-import validation passed" "SUCCESS"
+            else
+                print_warning "Post-import validation found issues (check validation log)"
+                log_to_file "Post-import validation completed with issues" "WARN"
+            fi
+        else
+            print_warning "Post-import validation script not found: ${post_validation_script}"
+            log_to_file "Post-import validation script not found" "WARN"
         fi
     fi
     
