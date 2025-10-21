@@ -218,6 +218,14 @@ If migrations are in a "dirty" state (partially applied):
 
 ### Run the API Server
 
+**With Hot Reload (Recommended for Development):**
+```bash
+make dev
+```
+
+This uses [Air](https://github.com/cosmtrek/air) for automatic reloading when files change. Air is configured via `.air.toml` to watch `.go` files and rebuild automatically.
+
+**Without Hot Reload:**
 ```bash
 make run
 ```

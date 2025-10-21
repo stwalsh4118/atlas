@@ -94,6 +94,10 @@ build: ## Build the API server
 run: ## Run the API server
 	go run ./cmd/server/main.go
 
+.PHONY: dev
+dev: ## Run the API server with hot reload (using Air)
+	air
+
 .PHONY: tidy
 tidy: ## Tidy Go modules
 	go mod tidy

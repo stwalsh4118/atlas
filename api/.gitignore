@@ -1,47 +1,14 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Air temp directory
+tmp/
 
-# Test binary, built with `go test -c`
+# Build artifacts
+bin/
+
+# Test binaries
 *.test
 
-# Output of the go coverage tool
-*.out
-coverage.txt
-coverage.html
+# Air build errors log
+build-errors.log
 
-# Go workspace file
-go.work
-go.work.sum
-
-# Dependency directories
-vendor/
-
-# Build output
-/bin/
-/dist/
-/build/
-/server
-/cmd/server/server
-/api
-
-# IDE - GoLand
-.idea/
-*.iml
-
-# Environment variables
-.env
+# Environment files (if any)
 .env.local
-.env.test
-
-# Compiled Object files
-*.o
-*.a
-
-# Debug files
-__debug_bin*
-debug.test
-
