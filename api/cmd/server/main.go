@@ -3,73 +3,111 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/sean/atlas/api/internal/config"
+	"github.com/sean/atlas/api/internal/database"
+	"github.com/sean/atlas/api/internal/handlers"
+	"github.com/sean/atlas/api/internal/logger"
+	"github.com/sean/atlas/api/internal/middleware"
 )
 
 const (
-	defaultPort       = "8080"
-	shutdownTimeout   = 30 * time.Second
-	readHeaderTimeout = 10 * time.Second
+	shutdownTimeout = 30 * time.Second
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultPort
+	// Load configuration from environment variables
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to load configuration: %v\n", err)
+		os.Exit(1)
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthCheckHandler)
-	mux.HandleFunc("/", rootHandler)
+	// Initialize structured logger
+	log := logger.New(cfg.Server.Env)
+	log.Info("Starting Atlas API", map[string]interface{}{
+		"version":     "0.1.0",
+		"environment": cfg.Server.Env,
+		"port":        cfg.Server.Port,
+	})
 
-	server := &http.Server{
-		Addr:              fmt.Sprintf(":%s", port),
-		Handler:           mux,
-		ReadHeaderTimeout: readHeaderTimeout,
+	// Create database connection pool
+	ctx := context.Background()
+	db, err := database.NewPostgresPool(ctx, cfg.Database)
+	if err != nil {
+		log.Fatal("Failed to connect to database", err, map[string]interface{}{
+			"host": cfg.Database.Host,
+			"port": cfg.Database.Port,
+			"name": cfg.Database.Name,
+		})
+	}
+	defer db.Close()
+
+	log.Info("Database connection established", map[string]interface{}{
+		"host":     cfg.Database.Host,
+		"port":     cfg.Database.Port,
+		"database": cfg.Database.Name,
+		"pool_min": cfg.Database.PoolMin,
+		"pool_max": cfg.Database.PoolMax,
+	})
+
+	// Setup Gin router
+	if cfg.Server.Env == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+	router := gin.New()
+
+	// Add middleware in order: RequestID -> Logger -> Recovery -> CORS
+	router.Use(middleware.RequestID())
+	router.Use(middleware.Logger(log))
+	router.Use(middleware.Recovery(log))
+	router.Use(middleware.CORS(cfg.CORS.Origins))
+
+	// Register health check routes
+	healthHandler := handlers.NewHealthHandler(db, cfg.Server.Env)
+	router.GET("/health", healthHandler.Health)
+	router.GET("/health/ready", healthHandler.Ready)
+	router.GET("/api/v1/info", healthHandler.Info)
+
+	// Create HTTP server
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%s", cfg.Server.Port),
+		Handler: router,
 	}
 
-	// Start server in a goroutine
+	// Start server in goroutine
 	go func() {
-		log.Printf("Server starting on port %s", port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server failed to start: %v", err)
+		log.Info("Server listening", map[string]interface{}{
+			"port": cfg.Server.Port,
+			"addr": srv.Addr,
+		})
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal("Server failed to start", err, nil)
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server
+	// Wait for interrupt signal (SIGINT or SIGTERM)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("Server is shutting down...")
+	// Graceful shutdown
+	log.Info("Shutting down server...", nil)
 
-	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server forced to shutdown: %v", err)
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Error("Server forced to shutdown", err, map[string]interface{}{
+			"timeout": shutdownTimeout.String(),
+		})
 	}
 
-	log.Println("Server exited")
-}
-
-func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte(`{"status":"healthy"}`)); err != nil {
-		log.Printf("Failed to write health check response: %v", err)
-	}
-}
-
-func rootHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if _, err := w.Write([]byte(`{"message":"Atlas API","version":"0.1.0"}`)); err != nil {
-		log.Printf("Failed to write root response: %v", err)
-	}
+	log.Info("Server exited", nil)
 }
