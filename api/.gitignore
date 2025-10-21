@@ -11,4 +11,5 @@ bin/
 build-errors.log
 
 # Environment files (if any)
+.env
 .env.local
