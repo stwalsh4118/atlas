@@ -15,6 +15,8 @@ import (
 	"github.com/stwalsh4118/atlas/api/internal/handlers"
 	"github.com/stwalsh4118/atlas/api/internal/logger"
 	"github.com/stwalsh4118/atlas/api/internal/middleware"
+	"github.com/stwalsh4118/atlas/api/internal/repository"
+	"github.com/stwalsh4118/atlas/api/internal/services"
 )
 
 const (
@@ -74,6 +76,22 @@ func main() {
 	router.GET("/health", healthHandler.Health)
 	router.GET("/health/ready", healthHandler.Ready)
 	router.GET("/api/v1/info", healthHandler.Info)
+
+	// Initialize repository and service layers
+	parcelRepo := repository.NewParcelRepository(db)
+	parcelService := services.NewParcelService(parcelRepo, log)
+
+	// Initialize handlers
+	parcelHandler := handlers.NewParcelHandler(parcelService)
+
+	// Register API v1 routes
+	v1 := router.Group("/api/v1")
+	{
+		parcels := v1.Group("/parcels")
+		{
+			parcels.GET("/at-point", parcelHandler.AtPoint)
+		}
+	}
 
 	// Create HTTP server
 	srv := &http.Server{
