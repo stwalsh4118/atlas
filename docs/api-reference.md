@@ -2,7 +2,7 @@
 
 > **Purpose**: Quick reference for existing APIs, data models, and pipeline tools to avoid recreating functionality
 
-Last Updated: 2025-10-21 (Task 5-4)
+Last Updated: 2025-10-21 (Task 5-5)
 
 ---
 
@@ -203,6 +203,7 @@ handlers.NewParcelHandler(service services.ParcelService) *ParcelHandler
 
 // Handler methods
 handler.AtPoint(c *gin.Context)  // GET /api/v1/parcels/at-point - find parcel by lat/lng
+handler.Nearby(c *gin.Context)   // GET /api/v1/parcels/nearby - find parcels within radius
 ```
 
 **Request DTOs**:
@@ -210,6 +211,12 @@ handler.AtPoint(c *gin.Context)  // GET /api/v1/parcels/at-point - find parcel b
 type AtPointRequest struct {
     Lat float64 `form:"lat" binding:"required,min=-90,max=90"`
     Lng float64 `form:"lng" binding:"required,min=-180,max=180"`
+}
+
+type NearbyRequest struct {
+    Lat    float64 `form:"lat" binding:"required,min=-90,max=90"`
+    Lng    float64 `form:"lng" binding:"required,min=-180,max=180"`
+    Radius int     `form:"radius,omitempty,min=1,max=5000"` // default: 1000m
 }
 ```
 
@@ -230,13 +237,36 @@ type ParcelData struct {
     Acres        float64                `json:"acres,omitempty"`
     ID           uint                   `json:"id"`
 }
+
+type NearbyResponse struct {
+    Parcels []ParcelWithDistance `json:"parcels"`
+    Count   int                  `json:"count"`
+}
+
+type ParcelWithDistance struct {
+    Geometry   map[string]interface{} `json:"geometry"`
+    ParcelID   string                 `json:"parcel_id,omitempty"`
+    OwnerName  string                 `json:"owner_name,omitempty"`
+    CountyName string                 `json:"county_name"`
+    Acres      float64                `json:"acres,omitempty"`
+    Distance   float64                `json:"distance_meters"`
+    ID         uint                   `json:"id"`
+}
 ```
 
 **Error Handling**:
-- Returns 400 for validation errors (missing/invalid coordinates)
-- Returns 404 when no parcel found at the given point
+- Returns 400 for validation errors (missing/invalid coordinates, invalid radius)
+- Returns 404 when no parcel found at the given point (at-point only)
+- Returns 200 with empty array when no parcels found (nearby only)
 - Returns 500 for database or unexpected errors
 - Uses `errors` package helpers for consistent responses
+
+**Nearby Endpoint Specifics**:
+- Default radius: 1000 meters (applied when radius=0 or not provided)
+- Maximum radius: 5000 meters
+- Returns empty array (count=0) when no parcels found
+- Results ordered by distance ascending
+- Distance values in meters
 
 ---
 

@@ -12,7 +12,7 @@ This document lists all tasks associated with PBI 5.
 | 5-2 | [Create parcel service with GetParcelAtPoint method](./5-2.md) | Done | Implement service layer for point-in-polygon business logic |
 | 5-3 | [Implement at-point endpoint with DTOs and validation](./5-3.md) | Done | Create handler, request/response DTOs, validation, and route registration |
 | 5-4 | [Extend repository and service for nearby query](./5-4.md) | Done | Add FindNearby and GetNearbyParcels methods with ST_DWithin |
-| 5-5 | [Implement nearby endpoint with DTOs and validation](./5-5.md) | Proposed | Create handler, DTOs, validation for nearby properties endpoint |
+| 5-5 | [Implement nearby endpoint with DTOs and validation](./5-5.md) | Done | Create handler, DTOs, validation for nearby properties endpoint |
 | 5-6 | [Extend repository and service for get-by-id query](./5-6.md) | Proposed | Add FindByID and GetParcelByID methods |
 | 5-7 | [Implement get-by-id endpoint with DTOs and validation](./5-7.md) | Proposed | Create handler, DTOs, validation for parcel lookup endpoint |
 | 5-8 | [Query performance optimization and monitoring](./5-8.md) | Proposed | Verify spatial index usage, add query timing logs, performance testing |
