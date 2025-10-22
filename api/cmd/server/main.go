@@ -90,6 +90,7 @@ func main() {
 		parcels := v1.Group("/parcels")
 		{
 			parcels.GET("/at-point", parcelHandler.AtPoint)
+			parcels.GET("/nearby", parcelHandler.Nearby)
 		}
 	}
 
